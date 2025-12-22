@@ -241,3 +241,58 @@ def list_services():
     )
 
     return [row["name"] for row in resp.data]
+# --------------------------------------------------
+# STORE INCIDENT EVENT
+# --------------------------------------------------
+@app.post("/incident-event")
+def store_incident_event(payload: dict):
+    service_name = payload.get("service_name")
+    event_type = payload.get("event_type")
+
+    service = (
+        supabase
+        .table("services")
+        .select("id")
+        .eq("name", service_name)
+        .execute()
+    )
+
+    if not service.data:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    service_id = service.data[0]["id"]
+
+    supabase.table("incident_events").insert({
+        "service_id": service_id,
+        "event_type": event_type
+    }).execute()
+
+    return {"status": "recorded"}
+# --------------------------------------------------
+# INCIDENT TIMELINE
+# --------------------------------------------------
+@app.get("/incident-timeline/{service_name}")
+def get_incident_timeline(service_name: str):
+    service = (
+        supabase
+        .table("services")
+        .select("id")
+        .eq("name", service_name)
+        .execute()
+    )
+
+    if not service.data:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    service_id = service.data[0]["id"]
+
+    events = (
+        supabase
+        .table("incident_events")
+        .select("event_type, created_at")
+        .eq("service_id", service_id)
+        .order("created_at")
+        .execute()
+    )
+
+    return events.data
