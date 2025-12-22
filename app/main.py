@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 from app.db.supabase_client import supabase
@@ -14,7 +15,31 @@ from app.features.risk_score import calculate_sla_risk
 from app.ml.predictor import predict_sla_risk_ml
 
 
+# --------------------------------------------------
+# APP INITIALIZATION
+# --------------------------------------------------
 app = FastAPI(title="SLA-Guard AI")
+
+# --------------------------------------------------
+# CORS CONFIGURATION (REQUIRED FOR FRONTEND)
+# --------------------------------------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",   # React (Vite)
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --------------------------------------------------
+# HEALTH CHECK (OPTIONAL BUT RECOMMENDED)
+# --------------------------------------------------
+@app.get("/")
+def health():
+    return {"status": "ok"}
+
 
 # --------------------------------------------------
 # INGEST METRICS (Core Input API)
@@ -61,7 +86,7 @@ def ingest_metrics(payload: MetricsIn):
 
 
 # --------------------------------------------------
-# PREDICT SLA RISK (Core Product API)
+# PREDICT SLA RISK (CORE PRODUCT API)
 # --------------------------------------------------
 @app.post("/predict-sla-risk")
 def predict_sla_risk(payload: PredictRequest):
@@ -79,10 +104,10 @@ def predict_sla_risk(payload: PredictRequest):
     service_id = service.data[0]["id"]
 
     # ---------------------------------
-    # Rule-based analysis (explanation)
+    # Rule-based analysis (Explanation)
     # ---------------------------------
     rule_result = calculate_sla_risk(service_id)
-    factors = rule_result["top_factors"]
+    factors = rule_result.get("top_factors", [])
 
     # ---------------------------------
     # Feature extraction for ML
