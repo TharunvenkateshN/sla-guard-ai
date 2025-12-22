@@ -155,3 +155,43 @@ def predict_sla_risk(payload: PredictRequest):
         "alert_required": alert_required,
         "top_factors": factors
     }
+# --------------------------------------------------
+# DEBUG FEATURES (EXPLAINABILITY ENDPOINT)
+# --------------------------------------------------
+@app.post("/debug-features")
+def debug_features(payload: PredictRequest):
+    service = (
+        supabase
+        .table("services")
+        .select("id")
+        .eq("name", payload.service_name)
+        .execute()
+    )
+
+    if not service.data:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    service_id = service.data[0]["id"]
+
+    # Feature extraction
+    burn_rate = calculate_burn_rate(service_id)
+    error_trend = calculate_error_trend(service_id)
+    error_acceleration = calculate_error_acceleration(service_id)
+    latency_deviation = calculate_latency_deviation(service_id)
+
+    features = {
+        "burn_rate": burn_rate,
+        "error_trend": error_trend,
+        "error_acceleration": error_acceleration,
+        "latency_deviation": latency_deviation
+    }
+
+    # ML prediction
+    risk_score = predict_sla_risk_ml(features)
+
+    return {
+        "service": payload.service_name,
+        "features": features,
+        "sla_risk_probability": risk_score,
+        "time_horizon": f"{payload.time_horizon_hours} hours"
+    }
