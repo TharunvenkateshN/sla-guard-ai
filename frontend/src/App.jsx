@@ -2,95 +2,214 @@ import React from "react";
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
+import RiskGauge from "./components/RiskGauge";
+import RiskHistoryChart from "./components/RiskHistoryChart";
+
 import {
-  getRiskState,
   smoothRisk,
-  getTrend
+  getRiskStateWithTrend
 } from "./utils/riskUtils";
 
+const REFRESH_INTERVAL_MS = 30000;
+
 function App() {
-  const [service, setService] = useState("payment-service");
+  const [services, setServices] = useState([]);
+  const [service, setService] = useState(null);
+
+  const [mode, setMode] = useState("production"); // demo | production
+
   const [risk, setRisk] = useState(null);
   const [factors, setFactors] = useState([]);
   const [timeHorizon, setTimeHorizon] = useState("");
+  const [riskHistory, setRiskHistory] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Store previous risk for smoothing
+  const [recovered, setRecovered] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
+
   const previousRiskRef = useRef(null);
+  const previousRiskForRenderRef = useRef(null);
+  const previousRiskStateRef = useRef(null);
 
+  // ----------------------------------
+  // Load services
+  // ----------------------------------
   useEffect(() => {
-    fetchRisk();
-  }, [service]);
+    fetchServices();
+  }, []);
 
-  async function fetchRisk() {
-    try {
-      const response = await axios.post(
-        "http://127.0.0.1:8000/predict-sla-risk",
-        {
-          service_name: service,
-          time_horizon_hours: 6
-        }
-      );
-
-      const rawRisk = response.data.sla_risk_probability;
-
-      // Smooth the risk
-      const smoothedRisk = smoothRisk(
-        previousRiskRef.current,
-        rawRisk
-      );
-
-      previousRiskRef.current = smoothedRisk;
-
-      setRisk(smoothedRisk);
-      setFactors(response.data.top_factors || []);
-      setTimeHorizon(response.data.time_horizon);
-
-    } catch (error) {
-      console.error("Error fetching SLA risk:", error);
-    }
+  async function fetchServices() {
+    const res = await axios.get("http://127.0.0.1:8000/services");
+    setServices(res.data);
+    if (res.data.length > 0) setService(res.data[0]);
   }
 
-  // Risk state for UI
-  const riskState = risk !== null ? getRiskState(risk) : null;
-  const trend = getTrend(risk, previousRiskRef.current);
+  // ----------------------------------
+  // Auto refresh on service / mode
+  // ----------------------------------
+  useEffect(() => {
+    if (!service) return;
+
+    resetState();
+    fetchRisk();
+
+    const id = setInterval(fetchRisk, REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [service, mode]);
+
+  function resetState() {
+    setRisk(null);
+    setFactors([]);
+    setRiskHistory([]);
+    setRecovered(false);
+    setAcknowledged(false);
+    setLastUpdated(null);
+
+    previousRiskRef.current = null;
+    previousRiskForRenderRef.current = null;
+    previousRiskStateRef.current = null;
+  }
+
+  // ----------------------------------
+  // Core fetch
+  // ----------------------------------
+  async function fetchRisk() {
+    const res = await axios.post(
+      "http://127.0.0.1:8000/predict-sla-risk",
+      {
+        service_name: service,
+        time_horizon_hours: 6
+      }
+    );
+
+    const rawRisk = res.data.sla_risk_probability;
+    const previousRisk = previousRiskRef.current;
+    previousRiskForRenderRef.current = previousRisk;
+
+    const smoothedRisk = smoothRisk(previousRisk, rawRisk);
+
+    const currentRiskState = getRiskStateWithTrend(
+      smoothedRisk,
+      previousRisk,
+      mode
+    ).label;
+
+    const previousRiskState = previousRiskStateRef.current;
+
+    if (
+      (previousRiskState === "CRITICAL" ||
+        previousRiskState === "WARNING") &&
+      currentRiskState === "HEALTHY"
+    ) {
+      setRecovered(true);
+    } else {
+      setRecovered(false);
+    }
+
+    if (currentRiskState !== "CRITICAL") {
+      setAcknowledged(false);
+    }
+
+    previousRiskRef.current = smoothedRisk;
+    previousRiskStateRef.current = currentRiskState;
+
+    setRisk(smoothedRisk);
+    setFactors(res.data.top_factors || []);
+    setTimeHorizon(res.data.time_horizon);
+    setLastUpdated(new Date());
+
+    const historyRes = await axios.get(
+      `http://127.0.0.1:8000/risk-history/${service}`
+    );
+    setRiskHistory(historyRes.data);
+  }
+
+  const riskState =
+    risk !== null
+      ? getRiskStateWithTrend(
+          risk,
+          previousRiskForRenderRef.current,
+          mode
+        )
+      : null;
 
   return (
-    <div style={{ padding: "30px", fontFamily: "serif" }}>
-      <h1>SLA-Guard AI Dashboard</h1>
+    <div className="dashboard">
+      {/* Header */}
+      <div className="header">
+        <h1>SLA-Guard AI</h1>
 
-      {/* Service Selector */}
-      <select
-        value={service}
-        onChange={(e) => setService(e.target.value)}
-      >
-        <option value="payment-service">payment-service</option>
-      </select>
+        {/* Mode Toggle */}
+        <div style={{ display: "flex", gap: "10px" }}>
+          <select
+            className="select"
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+          >
+            <option value="production">Production</option>
+            <option value="demo">Demo</option>
+          </select>
 
-      <h2 style={{ marginTop: "40px" }}>SLA Risk</h2>
-
-      {risk !== null && (
-        <div
-          style={{
-            fontSize: "32px",
-            fontWeight: "bold",
-            color: riskState.color,
-            marginTop: "10px"
-          }}
-        >
-          {(risk * 100).toFixed(1)}% — {riskState.label} {trend}
+          <select
+            className="select"
+            value={service || ""}
+            onChange={(e) => setService(e.target.value)}
+          >
+            {services.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+      </div>
 
-      <h3 style={{ marginTop: "40px" }}>Why at risk?</h3>
-      <ul>
-        {factors.map((factor, index) => (
-          <li key={index}>{factor}</li>
-        ))}
-      </ul>
+      {/* Cards */}
+      <div className="card-grid">
+        <div className="card">
+          <div className="card-title">SLA Risk</div>
 
-      <p style={{ marginTop: "20px" }}>
-        <strong>Time horizon:</strong> {timeHorizon}
-      </p>
+          {risk !== null && riskState && (
+            <RiskGauge
+              value={risk}
+              label={riskState.label}
+              color={riskState.color}
+            />
+          )}
+
+          <p style={{ fontSize: "14px", color: "#6b7280" }}>
+            Mode: <b>{mode.toUpperCase()}</b>
+          </p>
+
+          {lastUpdated && (
+            <p style={{ fontSize: "12px", color: "#9ca3af" }}>
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </p>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-title">Risk Trend</div>
+          {riskHistory.length > 0 ? (
+            <RiskHistoryChart data={riskHistory} />
+          ) : (
+            <p>No history</p>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-title">Why at risk?</div>
+          {riskState?.label === "HEALTHY" ? (
+            <p>No significant risk factors.</p>
+          ) : (
+            factors.map((f, i) => (
+              <div key={i} style={{ marginBottom: "10px" }}>
+                {f}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }

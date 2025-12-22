@@ -195,3 +195,49 @@ def debug_features(payload: PredictRequest):
         "sla_risk_probability": risk_score,
         "time_horizon": f"{payload.time_horizon_hours} hours"
     }
+# --------------------------------------------------
+# RISK HISTORY (FOR DASHBOARD CHART)
+# --------------------------------------------------
+@app.get("/risk-history/{service_name}")
+def risk_history(service_name: str, limit: int = 10):
+    service = (
+        supabase
+        .table("services")
+        .select("id")
+        .eq("name", service_name)
+        .execute()
+    )
+
+    if not service.data:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    service_id = service.data[0]["id"]
+
+    rows = (
+        supabase
+        .table("predictions")
+        .select("risk_probability, created_at")
+        .eq("service_id", service_id)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+
+    # Return oldest → newest (for chart)
+    history = list(reversed(rows.data))
+
+    return history
+# --------------------------------------------------
+# LIST SERVICES (FOR DROPDOWN)
+# --------------------------------------------------
+@app.get("/services")
+def list_services():
+    resp = (
+        supabase
+        .table("services")
+        .select("name")
+        .order("name")
+        .execute()
+    )
+
+    return [row["name"] for row in resp.data]
