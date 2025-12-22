@@ -1,35 +1,39 @@
 // ---------------------------------------------
-// SLA Risk Classification Utilities
+// Risk Utilities (Mode-aware)
 // ---------------------------------------------
 
-// Base risk classification (probability only)
-export function getRiskState(probability) {
-  if (probability >= 0.7) {
-    return { label: "CRITICAL", color: "red" };
-  } else if (probability >= 0.4) {
-    return { label: "WARNING", color: "orange" };
-  } else {
-    return { label: "HEALTHY", color: "green" };
-  }
-}
+// Mode-aware trend-based risk state
+export function getRiskStateWithTrend(
+  probability,
+  previous,
+  mode = "production"
+) {
+  // Thresholds differ by mode
+  const thresholds =
+    mode === "demo"
+      ? {
+          warning: 0.1,
+          critical: 0.5
+        }
+      : {
+          warning: 0.15,
+          critical: 0.7
+        };
 
-// Trend-aware risk classification (MVP UX logic)
-export function getRiskStateWithTrend(probability, previous) {
-  // Hard critical
-  if (probability >= 0.7) {
+  // CRITICAL always wins
+  if (probability >= thresholds.critical) {
     return { label: "CRITICAL", color: "red" };
   }
 
-  // Warning if risk is rising meaningfully
+  // WARNING if rising
   if (
     previous !== null &&
-    probability >= 0.15 &&
+    probability >= thresholds.warning &&
     probability > previous
   ) {
     return { label: "WARNING", color: "orange" };
   }
 
-  // Otherwise healthy
   return { label: "HEALTHY", color: "green" };
 }
 

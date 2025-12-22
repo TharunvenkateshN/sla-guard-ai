@@ -1,222 +1,209 @@
-🛡️ SLA-Guard AI
+🚨 SLA-Guard AI — Predictive SLA Monitoring (v1)
 
-Predictive SLA Risk Monitoring with Explainable ML
+SLA-Guard AI is a predictive monitoring system that forecasts SLA breach risk before it happens, explains why the risk is increasing, and tracks the full incident lifecycle — from early warning to recovery.
 
-🚨 Problem Statement
+Unlike traditional monitoring tools that react after an SLA is violated, SLA-Guard AI focuses on future risk and operator decision-making.
 
-Service Level Agreements (SLAs) define availability guarantees such as 99.9% uptime.
-However, most monitoring systems today are reactive:
+🎯 Problem Statement
 
-SLA breaches are detected after damage is done
+Most monitoring tools today suffer from three major limitations:
 
-Engineers see metrics, not future risk
+     # SLAs are detected after they are breached
 
-Alerts are threshold-based, noisy, and lack context
+     # Dashboards show raw metrics, not actionable risk
 
-This leads to:
+     # Engineers don’t know which signal matters right now
 
-Late incident response
+As a result:
 
-Alert fatigue
+   # Teams react late
 
-Loss of trust in monitoring systems
+   # Alert fatigue increases
 
-💡 Solution — SLA-Guard AI
+   # Root cause analysis is slow
 
-SLA-Guard AI predicts SLA breaches before they happen.
+💡 Solution Overview
 
-Instead of reacting to failures, it answers:
+SLA-Guard AI answers one core question:
 
 “Will this service violate its SLA in the next X hours — and why?”
 
-It combines:
+It does this by:
 
-SRE-grade feature engineering
+    ->  Ingesting real-time service metrics
 
-Explainable machine learning
+    -> Engineering SLA-focused signals
 
-Clear, actionable alerts
+    ->  Predicting future breach probability
 
-🎯 Core Capabilities (v1)
-✅ Predictive SLA Risk
+    ->  Explaining the top contributing factors
 
-Outputs a probability of SLA breach
+    ->  Tracking incident lifecycle events
 
-Time-horizon aware (e.g., next 6 hours)
+✨ Key Features (v1)
+🔮 Predictive SLA Risk
 
-✅ Explainability (Trust-First)
+    #  Forecasts probability of SLA violation (e.g., next 6 hours)
 
-Always explains why a service is at risk
+    #  Uses behavior-based signals, not static thresholds
+
+            🟢 HEALTHY / 🟡 WARNING / 🔴 CRITICAL States
+
+    #  Trend-aware classification
+
+    #  Early WARNING before CRITICAL
+
+    #  Prevents alert fatigue
+
+🧠 Explainability Engine
+
+Shows why a service is at risk
 
 Example:
 
 High SLA burn rate
 
-Latency deviating from baseline
+Latency deviation
 
-✅ ML-Backed Decisions
+Error rate acceleration
 
-Logistic Regression for:
+📈 Risk Trend Visualization
 
-Probability output
+Risk over time (not just point-in-time metrics)
 
-Interpretability
+Helps operators understand degradation patterns
 
-Stability
+🧯 Incident Lifecycle Tracking
 
-✅ Proactive Alerts
+Automatically records:
 
-Alerts triggered only when risk crosses threshold
+    WARNING started
 
-Stored for auditability
+    CRITICAL triggered
 
-🧠 How It Works (High Level)
-Metrics → Feature Engineering → ML Prediction → Explanation → Alert
+    Recovered
 
-1️⃣ Telemetry Ingestion
+Displays a clean incident timeline
 
-Every few minutes:
+🔄 Auto-Refreshing Dashboard
 
-Uptime %
+    #  Live updates every 30 seconds
 
-Latency (avg, p95)
+    #  No manual refresh required
 
-Error rate
+    #  🎛 Demo vs Production Mode
 
-Request volume
+    #  Production: conservative thresholds
 
-Deployment events
+    #  Demo: higher sensitivity for live demos
 
-2️⃣ Feature Engineering
+    #  Same data, different interpretation
 
-Derived signals:
+🧩 Multi-Service Support
 
-SLA burn rate
+Monitor multiple services from a single dashboard
 
-Error trend slope
+🏗️ System Architecture
+User / SRE
+   │
+   ▼
+React Dashboard
+   │
+   ▼
+FastAPI Backend
+   ├── Metrics Ingestion
+   ├── Feature Engineering
+   ├── SLA Risk Prediction
+   ├── Explanation Engine
+   └── Incident Tracking
+   │
+   ▼
+Supabase (PostgreSQL)
+   ├── services
+   ├── metrics
+   ├── predictions
+   └── incident_events
 
-Error acceleration
+📊 Metrics Ingested
 
-Latency deviation from baseline
+SLA-Guard AI ingests realistic service telemetry:
 
-3️⃣ Risk Prediction
+      ->  Uptime percentage
 
-Logistic Regression outputs breach probability
+      ->  Average latency
 
-Rule-based logic provides explanation
+      ->  p95 latency
 
-4️⃣ Alerting
+      ->  Error rate
 
-Alerts triggered when risk > threshold
+      ->  Request volume
 
-Stored for visibility and audit
+      ->  Deployment events
 
-🧪 Example API Response
+Metrics are pushed by the user’s system (industry-standard approach).
+
+🧪 Sample API Usage
+Ingest Metrics
+POST /ingest-metrics
+
 {
-  "service": "payment-service",
-  "sla_risk_probability": 0.82,
-  "time_horizon": "6 hours",
-  "alert_required": true,
-  "top_factors": [
-    "High SLA burn rate",
-    "Latency deviating from baseline"
-  ]
+  "service_name": "payment-service",
+  "uptime_percent": 99.7,
+  "avg_latency_ms": 420,
+  "p95_latency_ms": 720,
+  "error_rate": 0.025,
+  "request_volume": 2100,
+  "deployment_event": false
 }
 
-🏗️ Architecture
-Backend
+Predict SLA Risk
+POST /predict-sla-risk
 
-FastAPI — API layer
+{
+  "service_name": "payment-service",
+  "time_horizon_hours": 6
+}
 
-Supabase (PostgreSQL) — persistence
+🧠 Design Decisions 
+Why predictive instead of reactive?
+    -> Operators need lead time, not postmortems
 
-scikit-learn — ML model
+Why explainability?
+    -> A risk score without reasoning is not actionable
 
-joblib — model loading
+Why no authentication in v1?
+    -> v1 focuses on core intelligence
+    -> Authentication and multi-tenancy are planned for v2
 
-Architecture Pattern
 
-Offline ML training
+🚧 Planned Features 
 
-Online inference (clean separation)
+      # Firebase Authentication (dashboard access)
 
-Rule-based explanation + ML probability
+      # User-scoped services & multi-tenancy
 
-📂 Project Structure
-sla-guard-ai/
-├── app/
-│   ├── main.py
-│   ├── features/
-│   ├── ml/
-│   ├── schemas/
-│   └── db/
-├── ml/
-│   ├── train_model.py
-│   └── sla_risk_model.joblib
-├── README.md
-└── requirements.txt
+      # API key–based metric ingestion
 
-🔐 Trust & Reliability Philosophy
+      # Alert notifications (push/email)
 
-SLA-Guard AI is a trust-critical system.
+      # SLA confidence scoring
 
-Design principles:
+      # Post-incident summaries
 
-No silent failures
+🛠️ Tech Stack
 
-Explain every decision
+Frontend: React
 
-Prefer conservative alerts over noisy ones
+Backend: FastAPI
 
-🔭 Roadmap (v2 – Planned)
-🛡️ Self-Observability (Meta-Monitoring)
+Database: Supabase (PostgreSQL)
 
-“Who watches the watcher?”
+ML: Scikit-learn (explainable models)
 
-Planned enhancements:
+Visualization: Custom React components
 
-SLA-Guard AI monitors its own health
 
-Detects degradation in prediction pipeline
+🧑‍💻 Author
 
-Enters safe-mode if reliability is compromised
-
-Transparent messaging to users during degraded states
-
-This ensures:
-
-User trust is preserved
-
-No false confidence is ever given
-
-🚀 Why SLA-Guard AI Is Different
-
-Existing Tools	                SLA-Guard AI
-
-Reactive alerts                	Predictive risk
-Metric-level focus	            SLA-level decisions
-Threshold-based	                Learned patterns
-Black-box alerts	              Explainable causes
-Vendor-locked	                  Vendor-neutral
-
-🧪 MVP Status
-
-v1 Complete
-
-( 1.) Predicts SLA breaches
-
-( 2.) Explains why
-
-( 3.) Alerts proactively
-
-( 4.) ML-backed, explainable, and stable
-
-👤 Intended Users
-
--> SREs
-
--> Platform Engineers
-
--> Reliability teams
-
--> DevOps teams
+Tharun N V
+Computer & Communication Engineering
