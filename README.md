@@ -1,4 +1,4 @@
-🚨 SLA-Guard AI — Predictive SLA Monitoring (v1)
+🚨 **SLA-Guard AI** — *Predictive SLA Monitoring (v1)*
 
 SLA-Guard AI is a predictive monitoring system that forecasts SLA breach risk before it happens, explains why the risk is increasing, and tracks the full incident lifecycle — from early warning to recovery.
 
@@ -61,17 +61,17 @@ Shows why a service is at risk
 
 Example:
 
-High SLA burn rate
-
-Latency deviation
-
-Error rate acceleration
+     High SLA burn rate
+     
+     Latency deviation
+     
+     Error rate acceleration
 
 📈 Risk Trend Visualization
 
-Risk over time (not just point-in-time metrics)
-
-Helps operators understand degradation patterns
+     Risk over time (not just point-in-time metrics)
+     
+     Helps operators understand degradation patterns
 
 🧯 Incident Lifecycle Tracking
 
@@ -105,44 +105,25 @@ Monitor multiple services from a single dashboard
 
 🏗️ System Architecture
 
-User / SRE
-
-   │
-   
-   ▼
-   
-React Dashboard
-
-   │
-   
-   ▼
-   
-FastAPI Backend
-
-   ├── Metrics Ingestion
-   
-   ├── Feature Engineering
-   
-   ├── SLA Risk Prediction
-   
-   ├── Explanation Engine
-   
-   └── Incident Tracking
-   
-   │
-   
-   ▼
-   
-Supabase (PostgreSQL)
-
-   ├── services
-   
-   ├── metrics
-   
-   ├── predictions
-   
-   └── incident_events
-   
+     User / SRE
+        │
+        ▼
+     React Dashboard
+        │
+        ▼
+     FastAPI Backend
+        ├── Metrics Ingestion
+        ├── Feature Engineering
+        ├── SLA Risk Prediction
+        ├── Explanation Engine
+        └── Incident Tracking
+        │
+        ▼
+     Supabase (PostgreSQL)
+        ├── services
+        ├── metrics
+        ├── predictions
+        └── incident_events
 
 
 📊 Metrics Ingested
@@ -153,135 +134,232 @@ SLA-Guard AI ingests realistic service telemetry:
  Raw Telemetry Metrics
 
      uptime_percentage
-     
      error_rate
-     
      error_count
-     
      latency_avg
-     
      latency_p95
-     
      request_volume
-     
      request_rate
-     
      deployment_event
-     
      deployment_timestamp
 
 Engineered / Derived Metrics
 
      sla_burn_rate
-     
      remaining_sla_budget
-     
      uptime_trend_slope
-     
      error_rate_trend
-     
      latency_trend
-     
      error_rate_acceleration
-     
      latency_acceleration
-     
      latency_deviation
-     
      error_rate_deviation
-     
      post_deployment_window
-     
      post_deployment_error_spike
-     
      post_deployment_latency_spike
 
 Prediction Metrics
      
      sla_risk_probability
-     
      prediction_time_horizon
-     
      Explanation Metrics
-     
      top_contributing_factors
-     
      feature_weights
-     
      risk_driver_category
 
 Alerting Metrics
 
      alert_threshold
-     
      alert_severity
-     
      alert_trigger_time
-     
      alert_acknowledged
 
 Dashboard Metrics
 
      current_sla_health
-     
      risk_trend
-     
      sla_budget_remaining
-     
      last_prediction_time
-     
      top_risk_reason
      
 
 Metrics are pushed by the user’s system.
 
-🧪 Sample API Usage
+📡 Sample API Usage
 
-Ingest Metrics
+“SLA-Guard AI exposes simple REST APIs to ingest telemetry, predict future SLA breaches, explain root causes, and notify engineers before impact occurs.”
 
-POST /ingest-metrics
+Base URL (local):
 
-
-{
-
-  "service_name": "payment-service",
-  
-  "uptime_percent": 99.7,
-  
-  "avg_latency_ms": 420,
-  
-  "p95_latency_ms": 720,
-  
-  "error_rate": 0.025,
-  
-  "request_volume": 2100,
-  
-  "deployment_event": false
-  
-}
+     http://localhost:8000
 
 
-Predict SLA Risk
-
-POST /predict-sla-risk
+1️⃣ Ingest Metrics
 
 
-{
+Endpoint: /ingest-metrics
 
-  "service_name": "payment-service",
-  
-  "time_horizon_hours": 6
-  
-}
+Method: POST
+
+Purpose: Send service telemetry to SLA-Guard AI
+
+
+🔹 Request
+
+     {
+       "service_name": "payment-service",
+       "timestamp": "2025-12-23T16:30:00Z",
+       "uptime_percentage": 99.91,
+       "error_rate": 0.012,
+       "error_count": 34,
+       "latency_avg": 210,
+       "latency_p95": 480,
+       "request_volume": 5400,
+       "request_rate": 9.2,
+       "deployment_event": false
+     }
+
+
+🔹 cURL
+
+curl -X POST http://localhost:8000/ingest-metrics \
+
+-H "Content-Type: application/json" \
+
+-d @metrics.json
+
+
+🔹 Response
+
+     {
+       "status": "metrics_ingested", 
+       "service_name": "payment-service"
+     }
+
+
+2️⃣ Predict SLA Breach Risk
+
+
+Endpoint: /predict-sla-risk
+
+Method: GET
+
+Purpose: Predict probability of SLA violation
+
+
+🔹 Request
+
+     /predict-sla-risk?service_name=payment-service
+
+
+🔹 cURL
+
+     curl http://localhost:8000/predict-sla-risk?service_name=payment-service
+
+
+🔹 Response
+
+     {
+       "service_name": "payment-service", 
+       "sla_risk_probability": 0.82,
+       "prediction_time_horizon": "6 hours"
+     }
+
+
+3️⃣ Explain SLA Risk
+
+
+Endpoint: /explain-risk
+
+Method: GET
+
+Purpose: Explain why the SLA is at risk
+
+
+🔹 Request
+
+     /explain-risk?service_name=payment-service
+
+
+🔹 Response
+
+     {
+       "service_name": "payment-service", 
+       "top_contributing_factors": [
+         {
+           "factor": "error_rate_acceleration",
+           "impact_percentage": 38
+         },
+         {
+           "factor": "latency_deviation",
+           "impact_percentage": 27  
+         },
+         {
+           "factor": "recent_deployment",
+           "impact_percentage": 17
+         }
+       ]
+     }
+
+
+4️⃣ Alerts (Auto-Triggered)
+
+
+Condition:
+
+
+sla_risk_probability > alert_threshold
+
+
+🔹 Stored Alert (Firestore)
+
+     {
+       "service_name": "payment-service", 
+       "risk_probability": 0.82,
+       "time_horizon": "6 hours",
+       "top_cause": "error_rate_acceleration",
+       "severity": "RED",
+       "timestamp": "2025-12-23T16:31:12Z"
+     }
+
+
+🔹 Push Notification (FCM)
+
+🚨 SLA Risk Alert
+
+     Service: payment-service
+     
+     Risk: 82%
+     
+     Likely breach in next 6 hours
+     
+     Top cause: Error rate spike
+
+
+5️⃣ Minimal API Flow
+
+     -> /ingest-metrics
+      
+     -> /predict-sla-risk
+      
+     -> /explain-risk
+      
+     -> Alerts + Dashboard Update
+
+
 
 🧠 Design Decisions 
+
 Why predictive instead of reactive?
+
     -> Operators need lead time, not postmortems
 
 Why explainability?
+
     -> A risk score without reasoning is not actionable
 
 Why no authentication in v1?
+
     -> v1 focuses on core intelligence
     -> Authentication and multi-tenancy are planned for v2
 
@@ -316,5 +394,7 @@ Why no authentication in v1?
 🧑‍💻 Author
 
 Tharun N V
+
 Computer & Communication Engineering
+
 Interested in AI/ML , SDE , MERN
