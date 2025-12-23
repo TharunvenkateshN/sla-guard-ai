@@ -16,11 +16,11 @@ Most monitoring tools today suffer from three major limitations:
 
 As a result:
 
-   # Teams react late
+   -> Teams react late
 
-   # Alert fatigue increases
+   -> Alert fatigue increases
 
-   # Root cause analysis is slow
+   -> Root cause analysis is slow
 
 💡 Solution Overview
 
@@ -104,64 +104,174 @@ Displays a clean incident timeline
 Monitor multiple services from a single dashboard
 
 🏗️ System Architecture
+
 User / SRE
+
    │
+   
    ▼
+   
 React Dashboard
+
    │
+   
    ▼
+   
 FastAPI Backend
+
    ├── Metrics Ingestion
+   
    ├── Feature Engineering
+   
    ├── SLA Risk Prediction
+   
    ├── Explanation Engine
+   
    └── Incident Tracking
+   
    │
+   
    ▼
+   
 Supabase (PostgreSQL)
+
    ├── services
+   
    ├── metrics
+   
    ├── predictions
+   
    └── incident_events
+   
+
 
 📊 Metrics Ingested
 
+
 SLA-Guard AI ingests realistic service telemetry:
 
-      ->  Uptime percentage
+ Raw Telemetry Metrics
 
-      ->  Average latency
+     uptime_percentage
+     
+     error_rate
+     
+     error_count
+     
+     latency_avg
+     
+     latency_p95
+     
+     request_volume
+     
+     request_rate
+     
+     deployment_event
+     
+     deployment_timestamp
 
-      ->  p95 latency
+Engineered / Derived Metrics
 
-      ->  Error rate
+     sla_burn_rate
+     
+     remaining_sla_budget
+     
+     uptime_trend_slope
+     
+     error_rate_trend
+     
+     latency_trend
+     
+     error_rate_acceleration
+     
+     latency_acceleration
+     
+     latency_deviation
+     
+     error_rate_deviation
+     
+     post_deployment_window
+     
+     post_deployment_error_spike
+     
+     post_deployment_latency_spike
 
-      ->  Request volume
+Prediction Metrics
+     
+     sla_risk_probability
+     
+     prediction_time_horizon
+     
+     Explanation Metrics
+     
+     top_contributing_factors
+     
+     feature_weights
+     
+     risk_driver_category
 
-      ->  Deployment events
+Alerting Metrics
 
-Metrics are pushed by the user’s system (industry-standard approach).
+     alert_threshold
+     
+     alert_severity
+     
+     alert_trigger_time
+     
+     alert_acknowledged
+
+Dashboard Metrics
+
+     current_sla_health
+     
+     risk_trend
+     
+     sla_budget_remaining
+     
+     last_prediction_time
+     
+     top_risk_reason
+     
+
+Metrics are pushed by the user’s system.
 
 🧪 Sample API Usage
+
 Ingest Metrics
+
 POST /ingest-metrics
 
+
 {
+
   "service_name": "payment-service",
+  
   "uptime_percent": 99.7,
+  
   "avg_latency_ms": 420,
+  
   "p95_latency_ms": 720,
+  
   "error_rate": 0.025,
+  
   "request_volume": 2100,
+  
   "deployment_event": false
+  
 }
 
+
 Predict SLA Risk
+
 POST /predict-sla-risk
 
+
 {
+
   "service_name": "payment-service",
+  
   "time_horizon_hours": 6
+  
 }
 
 🧠 Design Decisions 
@@ -192,18 +302,19 @@ Why no authentication in v1?
 
 🛠️ Tech Stack
 
-Frontend: React
+◘ Frontend: React , TailWind CSS
 
-Backend: FastAPI
+◘ Backend: FastAPI
 
-Database: Supabase (PostgreSQL)
+◘ Database: Supabase (PostgreSQL)
 
-ML: Scikit-learn (explainable models)
+◘ ML: Scikit-learn (explainable models)
 
-Visualization: Custom React components
+◘ Visualization: Custom React components
 
 
 🧑‍💻 Author
 
 Tharun N V
 Computer & Communication Engineering
+Interested in AI/ML , SDE , MERN
