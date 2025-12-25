@@ -1,5 +1,4 @@
-import React from "react";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
 import RiskGauge from "./components/RiskGauge";
@@ -29,7 +28,7 @@ function App() {
   const [factors, setFactors] = useState([]);
   const [timeHorizon, setTimeHorizon] = useState("");
   const [riskHistory, setRiskHistory] = useState([]);
-  const [timeline, setTimeline] = useState([]);
+  const [timeline, setTimeline] = useState([]); // MUST be array
   const [lastUpdated, setLastUpdated] = useState(null);
 
   // Incident UX
@@ -37,11 +36,11 @@ function App() {
   const [acknowledged, setAcknowledged] = useState(false);
 
   // -----------------------------
-  // Refs (ordering matters)
+  // Refs
   // -----------------------------
-  const previousRiskRef = useRef(null);            // latest risk
-  const previousRiskForRenderRef = useRef(null);   // true previous risk
-  const previousRiskStateRef = useRef(null);       // HEALTHY/WARNING/CRITICAL
+  const previousRiskRef = useRef(null);
+  const previousRiskForRenderRef = useRef(null);
+  const previousRiskStateRef = useRef(null);
 
   // -----------------------------
   // Load services once
@@ -53,8 +52,8 @@ function App() {
   async function fetchServices() {
     try {
       const res = await axios.get("http://127.0.0.1:8000/services");
-      setServices(res.data);
-      if (res.data.length > 0) setService(res.data[0]);
+      setServices(Array.isArray(res.data) ? res.data : []);
+      if (res.data?.length > 0) setService(res.data[0]);
     } catch (err) {
       console.error("Failed to load services", err);
     }
@@ -106,7 +105,6 @@ function App() {
   // -----------------------------
   async function fetchRisk() {
     try {
-      // Predict SLA risk
       const res = await axios.post(
         "http://127.0.0.1:8000/predict-sla-risk",
         {
@@ -117,14 +115,11 @@ function App() {
 
       const rawRisk = res.data.sla_risk_probability;
 
-      // Capture previous risk
       const previousRisk = previousRiskRef.current;
       previousRiskForRenderRef.current = previousRisk;
 
-      // Smooth risk
       const smoothedRisk = smoothRisk(previousRisk, rawRisk);
 
-      // Determine state (mode-aware)
       const currentRiskState = getRiskStateWithTrend(
         smoothedRisk,
         previousRisk,
@@ -134,7 +129,7 @@ function App() {
       const previousRiskState = previousRiskStateRef.current;
 
       // -----------------------------
-      // Incident lifecycle tracking
+      // Incident lifecycle
       // -----------------------------
       if (previousRiskState !== currentRiskState) {
         if (currentRiskState === "WARNING") {
@@ -154,41 +149,40 @@ function App() {
         }
       }
 
-      // Recovery badge
-      if (
+      setRecovered(
         (previousRiskState === "WARNING" ||
           previousRiskState === "CRITICAL") &&
-        currentRiskState === "HEALTHY"
-      ) {
-        setRecovered(true);
-      } else {
-        setRecovered(false);
-      }
+          currentRiskState === "HEALTHY"
+      );
 
       if (currentRiskState !== "CRITICAL") {
         setAcknowledged(false);
       }
 
-      // Persist refs
       previousRiskRef.current = smoothedRisk;
       previousRiskStateRef.current = currentRiskState;
 
-      // Update UI state
       setRisk(smoothedRisk);
       setFactors(res.data.top_factors || []);
       setTimeHorizon(res.data.time_horizon);
       setLastUpdated(new Date());
 
-      // Fetch history + timeline
+      // -----------------------------
+      // History + timeline (SAFE)
+      // -----------------------------
       const historyRes = await axios.get(
         `http://127.0.0.1:8000/risk-history/${service}`
       );
-      setRiskHistory(historyRes.data);
+      setRiskHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
 
       const timelineRes = await axios.get(
         `http://127.0.0.1:8000/incident-timeline/${service}`
       );
-      setTimeline(timelineRes.data);
+      setTimeline(
+        Array.isArray(timelineRes.data)
+          ? timelineRes.data
+          : timelineRes.data?.incidents || []
+      );
 
     } catch (err) {
       console.error("Error fetching SLA risk", err);
@@ -214,7 +208,6 @@ function App() {
         <h1>SLA-Guard AI</h1>
 
         <div style={{ display: "flex", gap: "10px" }}>
-          {/* Mode toggle */}
           <select
             className="select"
             value={mode}
@@ -224,7 +217,6 @@ function App() {
             <option value="demo">Demo</option>
           </select>
 
-          {/* Service dropdown */}
           <select
             className="select"
             value={service || ""}
@@ -241,7 +233,6 @@ function App() {
 
       {/* Cards */}
       <div className="card-grid">
-        {/* SLA Risk */}
         <div className="card">
           <div className="card-title">SLA Risk</div>
 
@@ -252,10 +243,6 @@ function App() {
               color={riskState.color}
             />
           )}
-
-          <p style={{ fontSize: "14px", color: "#6b7280" }}>
-            Mode: <b>{mode.toUpperCase()}</b>
-          </p>
 
           {lastUpdated && (
             <p style={{ fontSize: "12px", color: "#9ca3af" }}>
@@ -287,7 +274,6 @@ function App() {
           )}
         </div>
 
-        {/* Risk Trend */}
         <div className="card">
           <div className="card-title">Risk Trend</div>
           {riskHistory.length > 0 ? (
@@ -297,25 +283,17 @@ function App() {
           )}
         </div>
 
-        {/* Explanation */}
         <div className="card">
           <div className="card-title">Why at risk?</div>
-
-          {riskState?.label === "HEALTHY" ? (
-            <p>No significant risk factors.</p>
-          ) : (
-            factors.map((f, i) => (
-              <div key={i} style={{ marginBottom: "10px" }}>
-                {f}
-              </div>
-            ))
-          )}
+          {riskState?.label === "HEALTHY"
+            ? "No significant risk factors."
+            : factors.map((f, i) => <div key={i}>{f}</div>)}
         </div>
 
-        {/* Incident Timeline */}
         <div className="card">
           <div className="card-title">Incident Timeline</div>
-          <IncidentTimeline events={timeline} />
+          {/* ✅ CORRECT PROP NAME */}
+          <IncidentTimeline incidents={timeline} />
         </div>
       </div>
     </div>

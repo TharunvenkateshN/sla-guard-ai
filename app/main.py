@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.db.supabase_client import supabase
 from app.schemas.metrics import MetricsIn
@@ -20,21 +20,23 @@ from app.ml.predictor import predict_sla_risk_ml
 # --------------------------------------------------
 app = FastAPI(title="SLA-Guard AI")
 
+
 # --------------------------------------------------
-# CORS CONFIGURATION (REQUIRED FOR FRONTEND)
+# CORS CONFIGURATION
 # --------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",   # React (Vite)
+        "http://localhost:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 # --------------------------------------------------
-# HEALTH CHECK (OPTIONAL BUT RECOMMENDED)
+# HEALTH CHECK
 # --------------------------------------------------
 @app.get("/")
 def health():
@@ -42,7 +44,7 @@ def health():
 
 
 # --------------------------------------------------
-# INGEST METRICS (Core Input API)
+# INGEST METRICS
 # --------------------------------------------------
 @app.post("/ingest-metrics")
 def ingest_metrics(payload: MetricsIn):
@@ -67,7 +69,8 @@ def ingest_metrics(payload: MetricsIn):
 
     metrics_data = {
         "service_id": service_id,
-        "timestamp": datetime.utcnow().isoformat(),
+        # use UTC explicitly (important for ordering)
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "uptime_percent": payload.uptime_percent,
         "avg_latency_ms": payload.avg_latency_ms,
         "p95_latency_ms": payload.p95_latency_ms,
@@ -86,7 +89,7 @@ def ingest_metrics(payload: MetricsIn):
 
 
 # --------------------------------------------------
-# PREDICT SLA RISK (CORE PRODUCT API)
+# PREDICT SLA RISK
 # --------------------------------------------------
 @app.post("/predict-sla-risk")
 def predict_sla_risk(payload: PredictRequest):
@@ -103,33 +106,78 @@ def predict_sla_risk(payload: PredictRequest):
 
     service_id = service.data[0]["id"]
 
-    # ---------------------------------
-    # Rule-based analysis (Explanation)
-    # ---------------------------------
-    rule_result = calculate_sla_risk(service_id)
-    factors = rule_result.get("top_factors", [])
+    # --------------------------------------------------
+    # Require minimum historical context
+    # --------------------------------------------------
+    metrics_count = (
+        supabase
+        .table("metrics")
+        .select("id", count="exact")
+        .eq("service_id", service_id)
+        .execute()
+    )
 
-    # ---------------------------------
-    # Feature extraction for ML
-    # ---------------------------------
+    if metrics_count.count < 4:
+        return {
+            "service": payload.service_name,
+            "sla_risk_probability": 0.0,
+            "time_horizon": f"{payload.time_horizon_hours} hours",
+            "alert_required": False,
+            "top_factors": ["Insufficient historical data"]
+        }
+
+    # --------------------------------------------------
+    # Feature extraction
+    # --------------------------------------------------
+    burn_rate = calculate_burn_rate(service_id)
+    error_trend = calculate_error_trend(service_id)
+    error_acceleration = calculate_error_acceleration(service_id)
+    latency_deviation = calculate_latency_deviation(service_id)
+
     features = {
-        "burn_rate": calculate_burn_rate(service_id),
-        "error_trend": calculate_error_trend(service_id),
-        "error_acceleration": calculate_error_acceleration(service_id),
-        "latency_deviation": calculate_latency_deviation(service_id)
+        "burn_rate": burn_rate,
+        "error_trend": error_trend,
+        "error_acceleration": error_acceleration,
+        "latency_deviation": latency_deviation
     }
 
-    # ---------------------------------
-    # ML-based probability prediction
-    # ---------------------------------
-    risk_score = predict_sla_risk_ml(features)
+    # --------------------------------------------------
+    # RULE-BASED GUARDRAIL
+    # --------------------------------------------------
+    rule_risk = 0.0
+    top_factors = []
+
+    if error_acceleration > 0.01:
+        rule_risk += 0.35
+        top_factors.append("Error rate accelerating")
+
+    if latency_deviation > 0.25:
+        rule_risk += 0.30
+        top_factors.append("Latency deviating from baseline")
+
+    if burn_rate > 0.6:
+        rule_risk += 0.35
+        top_factors.append("SLA burn rate high")
+
+    rule_risk = min(rule_risk, 1.0)
+
+    # --------------------------------------------------
+    # ML RISK
+    # --------------------------------------------------
+    ml_risk = predict_sla_risk_ml(features)
+
+    # --------------------------------------------------
+    # FINAL RISK (FUSION)
+    # --------------------------------------------------
+    risk_score = max(ml_risk, rule_risk)
+    risk_score = round(min(risk_score, 1.0), 2)
 
     ALERT_THRESHOLD = 0.7
     alert_required = risk_score >= ALERT_THRESHOLD
 
-    # ---------------------------------
+    # --------------------------------------------------
     # Persist prediction
-    # ---------------------------------
+    # --------------------------------------------------
     supabase.table("predictions").insert({
         "service_id": service_id,
         "risk_probability": risk_score,
@@ -137,15 +185,15 @@ def predict_sla_risk(payload: PredictRequest):
         "alert_required": alert_required
     }).execute()
 
-    # ---------------------------------
-    # Persist alert (if required)
-    # ---------------------------------
+    # --------------------------------------------------
+    # Persist alert
+    # --------------------------------------------------
     if alert_required:
         supabase.table("alerts").insert({
             "service_id": service_id,
             "risk_probability": risk_score,
             "time_horizon": f"{payload.time_horizon_hours} hours",
-            "top_cause": factors[0] if factors else "Unknown"
+            "top_cause": top_factors[0] if top_factors else "Unknown"
         }).execute()
 
     return {
@@ -153,10 +201,12 @@ def predict_sla_risk(payload: PredictRequest):
         "sla_risk_probability": risk_score,
         "time_horizon": f"{payload.time_horizon_hours} hours",
         "alert_required": alert_required,
-        "top_factors": factors
+        "top_factors": top_factors or ["No dominant risk factor"]
     }
+
+
 # --------------------------------------------------
-# DEBUG FEATURES (EXPLAINABILITY ENDPOINT)
+# DEBUG FEATURES
 # --------------------------------------------------
 @app.post("/debug-features")
 def debug_features(payload: PredictRequest):
@@ -173,30 +223,25 @@ def debug_features(payload: PredictRequest):
 
     service_id = service.data[0]["id"]
 
-    # Feature extraction
-    burn_rate = calculate_burn_rate(service_id)
-    error_trend = calculate_error_trend(service_id)
-    error_acceleration = calculate_error_acceleration(service_id)
-    latency_deviation = calculate_latency_deviation(service_id)
-
     features = {
-        "burn_rate": burn_rate,
-        "error_trend": error_trend,
-        "error_acceleration": error_acceleration,
-        "latency_deviation": latency_deviation
+        "burn_rate": calculate_burn_rate(service_id),
+        "error_trend": calculate_error_trend(service_id),
+        "error_acceleration": calculate_error_acceleration(service_id),
+        "latency_deviation": calculate_latency_deviation(service_id)
     }
 
-    # ML prediction
     risk_score = predict_sla_risk_ml(features)
 
     return {
         "service": payload.service_name,
         "features": features,
-        "sla_risk_probability": risk_score,
+        "sla_risk_probability": round(risk_score, 2),
         "time_horizon": f"{payload.time_horizon_hours} hours"
     }
+
+
 # --------------------------------------------------
-# RISK HISTORY (FOR DASHBOARD CHART)
+# RISK HISTORY
 # --------------------------------------------------
 @app.get("/risk-history/{service_name}")
 def risk_history(service_name: str, limit: int = 10):
@@ -223,12 +268,11 @@ def risk_history(service_name: str, limit: int = 10):
         .execute()
     )
 
-    # Return oldest → newest (for chart)
-    history = list(reversed(rows.data))
+    return list(reversed(rows.data))
 
-    return history
+
 # --------------------------------------------------
-# LIST SERVICES (FOR DROPDOWN)
+# LIST SERVICES
 # --------------------------------------------------
 @app.get("/services")
 def list_services():
@@ -239,10 +283,11 @@ def list_services():
         .order("name")
         .execute()
     )
-
     return [row["name"] for row in resp.data]
+
+
 # --------------------------------------------------
-# STORE INCIDENT EVENT
+# INCIDENT EVENT
 # --------------------------------------------------
 @app.post("/incident-event")
 def store_incident_event(payload: dict):
@@ -260,14 +305,14 @@ def store_incident_event(payload: dict):
     if not service.data:
         raise HTTPException(status_code=404, detail="Service not found")
 
-    service_id = service.data[0]["id"]
-
     supabase.table("incident_events").insert({
-        "service_id": service_id,
+        "service_id": service.data[0]["id"],
         "event_type": event_type
     }).execute()
 
     return {"status": "recorded"}
+
+
 # --------------------------------------------------
 # INCIDENT TIMELINE
 # --------------------------------------------------

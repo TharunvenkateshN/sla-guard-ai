@@ -64,3 +64,75 @@ h1, h2, h3 {
 .factor-list li {
   margin-bottom: 6px;
 }
+.incident-timeline-container {
+  width: 100%;
+}
+
+.incident-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.incident-card {
+  background: #0f172a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-left: 4px solid #64748b;
+}
+
+.incident-card.warning {
+  border-left-color: #facc15;
+}
+
+.incident-card.critical {
+  border-left-color: #ef4444;
+}
+
+.incident-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.severity {
+  font-weight: 600;
+}
+
+.incident-message {
+  margin: 6px 0;
+}
+
+.ack {
+  font-size: 12px;
+}
+
+.ack.acked {
+  color: #22c55e;
+}
+
+.ack.pending {
+  color: #f97316;
+}
+
+.timeline-controls {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.timeline-controls button {
+  padding: 6px 10px;
+}
+
+.timeline-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.empty {
+  opacity: 0.6;
+  text-align: center;
+}
