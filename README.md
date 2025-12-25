@@ -391,6 +391,141 @@ Why no authentication in v1?
 ◘ Visualization: Custom React components
 
 
+
+⚠️ Known Limitations (MVP)
+
+SLA-Guard AI is intentionally scoped as a focused MVP to validate predictive SLA risk detection.
+The following limitations are known, documented, and planned for future improvement.
+
+1️⃣ SLA Thresholds Are Not Fully Calibrated
+
+     Current risk thresholds are generic and not fine-tuned for a specific SLA target (e.g., 99.9%).
+     
+     The system prioritizes trend detection and early warning over precise SLA math.
+     
+     Impact:
+     
+     Risk percentages should be interpreted as relative indicators, not absolute breach guarantees.
+     
+     Planned Improvement:
+     
+     SLA-specific threshold calibration (99.9%, 99.95%, 99.99%).
+
+2️⃣ Single SLA Type Supported
+
+     Only Availability SLA is supported in the MVP.
+     
+     Latency and error rate are used as signals, not as independent SLA objectives.
+     
+     Impact:
+     
+     Latency spikes alone may not escalate risk to CRITICAL.
+     
+     Planned Improvement:
+     
+     Support for latency-based and error-rate-based SLAs.
+
+3️⃣ Lightweight ML Model
+
+     The ML model is intentionally simple and explainable.
+     
+     No deep learning or complex ensembles are used.
+     
+     Impact:
+     
+     Model accuracy depends heavily on feature quality and historical context.
+     
+     Planned Improvement:
+     
+     Adaptive models per service.
+     
+     Incremental retraining with live data.
+
+4️⃣ Requires Historical Context
+
+     A minimum number of metric datapoints is required before risk prediction begins.
+     
+     New services initially show 0% risk until sufficient data is available.
+     
+     Impact:
+     
+     Risk prediction does not activate immediately for newly onboarded services.
+     
+     Planned Improvement:
+     
+     Cold-start heuristics and synthetic baselines.
+
+5️⃣ No Cross-Service Correlation
+
+     Each service is evaluated independently.
+     
+     Downstream or upstream dependencies are not considered.
+     
+     Impact:
+     
+     Cascading failures across services are not detected.
+     
+     Planned Improvement:
+     
+     Dependency-aware risk propagation.
+
+6️⃣ Alerting Is Threshold-Based
+
+     Alerts trigger only when risk exceeds a fixed threshold.
+     
+     No dynamic alert suppression or escalation policies.
+     
+     Impact:
+     
+     Alert behavior is predictable but not adaptive.
+     
+     Planned Improvement:
+     
+     Alert fatigue reduction and adaptive alerting strategies.
+
+7️⃣ Synthetic / Simulated Telemetry
+
+     The MVP is tested using synthetic and simulated telemetry data.
+     
+     No direct integrations with production monitoring tools.
+     
+     Impact:
+     
+     Behavior is representative but not production-validated.
+     
+     Planned Improvement:
+     
+     Native integrations (Datadog, Prometheus, CloudWatch).
+
+8️⃣ No Auto-Remediation
+
+     SLA-Guard AI only predicts and explains risk.
+     
+     It does not perform automatic corrective actions.
+     
+     Impact:
+     
+     Human intervention is required after alerts.
+     
+     Planned Improvement:
+     
+     Guided remediation suggestions and playbooks.
+
+🧠 Why These Limitations Exist
+
+     These limitations are deliberate design choices, not technical gaps.
+     
+     The MVP focuses on predictive insight, explainability, and correctness rather than completeness.
+     
+     This approach ensures:
+     
+     Clear system behavior
+     
+     Reliable demos
+     
+     Strong foundation for future expansion
+
+
 🧑‍💻 Author
 
 Tharun N V
