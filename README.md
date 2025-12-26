@@ -124,6 +124,17 @@ Monitor multiple services from a single dashboard
         ├── metrics
         ├── predictions
         └── incident_events
+System Flow Architecture
+
+     Client/App
+        ↓
+     Metrics Ingestion API
+        ↓
+     Risk Engine (rules / trends)
+        ↓
+     Incident State Manager
+        ↓
+     Alerts / Dashboard
 
 
 📊 Metrics Ingested
